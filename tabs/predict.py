@@ -59,7 +59,7 @@ layout = html.Div([
             id='Sex'
         ),
     ], style=style),
-
+    html.Br(),
     html.Div(id='prediction-content', style={'fontWeight': 'bold'}),
 
 ])
@@ -84,7 +84,7 @@ def predict(Age, Pclass, Fare, Sex):
     df['Fare'] = df['Fare'].astype('float')
     df['Sex'] = df['Sex'].astype(CategoricalDtype(categories=read_categories['Sex'], ordered=True))
     
-    print(df)
+    #print(df)
 
     model_from_save = XGBClassifier()
     model_from_save.load_model("model/model.json")
@@ -93,4 +93,4 @@ def predict(Age, Pclass, Fare, Sex):
 
     results = pred[0][1]
 
-    return results
+    return f'Probability: {results}'
