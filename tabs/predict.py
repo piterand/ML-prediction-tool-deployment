@@ -5,128 +5,92 @@ import dash_html_components as html
 from joblib import load
 import numpy as np
 import pandas as pd
+from xgboost import XGBClassifier
+from pandas.api.types import CategoricalDtype
+import json
 
 from app import app
 
-cities = ['Belvedere',
-          'Bolinas',
-          'Corte Madera',
-          'Dillon Beach',
-          'Fairfax',
-          'Greenbrae',
-          'Inverness',
-          'Kentfield',
-          'Larkspur',
-          'Marshall',
-          'Mill Valley',
-          'Muir Beach',
-          'Nicasio',
-          'Novato',
-          'Point Reyes',
-          'Ross',
-          'San Anselmo',
-          'San Geronimo Valley',
-          'San Rafael',
-          'Sausalito',
-          'Stinson Beach',
-          'Tiburon',
-          'Tomales',
-          'Other'
-          ]
 
 style = {'padding': '1.5em'}
 
 layout = html.Div([
     dcc.Markdown("""
         ### Predict
-        Use the controls below to update your predicted offer, based on city,
-        beds, baths, number of offers, and list price.
+        Use the controls below to predict outcome
 
     """),
 
-    html.Div(id='prediction-content', style={'fontWeight': 'bold'}),
+    html.Div([
+        dcc.Markdown('###### Age'),
+        dcc.Input(
+            placeholder='Enter a value...',
+            type='number',
+            debounce=False,
+            id='Age',
+        ),
+    ], style=style),
 
     html.Div([
-        dcc.Markdown('###### Area'),
+        dcc.Markdown('###### Pclass'),
+        dcc.Input(
+            placeholder='Enter a value...',
+            type='number',
+            debounce=False,
+            id='Pclass'
+        ),
+    ], style=style),
+
+    html.Div([
+        dcc.Markdown('###### Fare'),
+        dcc.Input(
+            placeholder='Enter a value...',
+            type='number',
+            debounce=False,
+            id='Fare'
+        ),
+    ], style=style),
+
+    html.Div([
+        dcc.Markdown('###### Sex'),
         dcc.Dropdown(
-            id='area',
-            options=[{'label': city, 'value': city} for city in cities],
-            value=cities[10]
+            ['male', 'female', 'dont know'],
+            'dont know',
+            id='Sex'
         ),
     ], style=style),
 
-    html.Div([
-        dcc.Markdown('###### Bedrooms'),
-        dcc.Slider(
-            id='bedrooms',
-            min=1,
-            max=7,
-            step=1,
-            value=3,
-            marks={n: str(n) for n in range(1, 7, 1)}
-        ),
-    ], style=style),
-
-    html.Div([
-        dcc.Markdown('###### Baths'),
-        dcc.Slider(
-            id='baths',
-            min=1,
-            max=9,
-            step=1,
-            value=2,
-            marks={n: str(n) for n in range(1, 9, 1)}
-        ),
-    ], style=style),
-
-    html.Div([
-        dcc.Markdown('###### Number of Offers'),
-        dcc.Slider(
-            id='offers',
-            min=2,
-            max=15,
-            step=1,
-            value=3,
-            marks={n: str(n) for n in range(2, 15, 1)}
-        ),
-    ], style=style),
-
-    html.Div([
-        dcc.Markdown('###### Listing Price'),
-        dcc.Slider(
-            id='list_price',
-            min=1000000,
-            max=3000000,
-            step=100000,
-            value=1500000,
-            marks={n: f'{n/1000:.0f}k' for n in range(1000000, 3000000, 100000)}
-        ),
-    ], style=style),
+    html.Div(id='prediction-content', style={'fontWeight': 'bold'}),
 
 ])
 
-
 @app.callback(
     Output('prediction-content', 'children'),
-    [Input('area', 'value'),
-     Input('bedrooms', 'value'),
-     Input('baths', 'value'),
-     Input('offers', 'value'),
-     Input('list_price', 'value')])
-def predict(area, bedrooms, baths, offers, list_price):
+    [Input('Age', 'value'),
+     Input('Pclass', 'value'),
+     Input('Fare', 'value'),
+     Input('Sex', 'value')])
+def predict(Age, Pclass, Fare, Sex):
 
-    year = 2019
     df = pd.DataFrame(
-        columns=['Year', 'Area', 'Total Bathrooms', 'Bedrooms', 'Curr List Price', 'Number of Offers'],
-        data=[[year, area, baths, bedrooms, list_price, offers]]
+        columns=['Age', 'Pclass', 'Fare', 'Sex'],
+        data=[[Age, Pclass, Fare, Sex, ]]
     )
+    with open('model/categories.json', 'r') as fp1:
+        read_categories = json.load(fp1)
 
-    pipeline = load('model/pipeline.joblib')
-    y_pred_log = pipeline.predict(df)
-    y_pred = y_pred_log[0]
-    percent_over = ((y_pred - list_price) / list_price) * 100
-    per_offer = percent_over / offers
-    results = f'The predicted winning bid is ${y_pred:,.0f} which is {percent_over:.2f}% over the asking price or \
-                {per_offer:.2f}% per offer.'
+    df['Age'] = df['Age'].astype('float')
+    df['Pclass'] = df['Pclass'].astype('float')
+    df['Fare'] = df['Fare'].astype('float')
+    df['Sex'] = df['Sex'].astype(CategoricalDtype(categories=read_categories['Sex'], ordered=True))
+    
+    print(df)
+
+    model_from_save = XGBClassifier()
+    model_from_save.load_model("model/model.json")
+
+    pred = model_from_save.predict_proba(df)
+
+    results = pred[0][1]
 
     return results
