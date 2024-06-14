@@ -92,5 +92,7 @@ def predict(Age, Pclass, Fare, Sex):
     pred = model_from_save.predict_proba(df)
 
     results = pred[0][1]
+    format_results = float('{:.2f}'.format(100*results))
 
-    return f'Probability: {results}'
+
+    return f'Probability: {format_results}%'
